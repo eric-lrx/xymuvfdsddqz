@@ -9,6 +9,7 @@ class Worksite {
   final String? clientName;
   final DateTime startDate;
   final DateTime? endDate;
+  final List<String> assignedEmployees; // Liste des IDs des employés assignés à ce chantier
 
   Worksite({
     required this.id,
@@ -21,6 +22,7 @@ class Worksite {
     this.description,
     this.clientName,
     this.endDate,
+    this.assignedEmployees = const [],
   });
 
   factory Worksite.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,9 @@ class Worksite {
       clientName: json['clientName'],
       startDate: DateTime.parse(json['startDate']),
       endDate: json['endDate'] != null ? DateTime.parse(json['endDate']) : null,
+      assignedEmployees: json['assignedEmployees'] != null 
+          ? List<String>.from(json['assignedEmployees'])
+          : [],
     );
   }
 
@@ -50,6 +55,7 @@ class Worksite {
       'clientName': clientName,
       'startDate': startDate.toIso8601String(),
       'endDate': endDate?.toIso8601String(),
+      'assignedEmployees': assignedEmployees,
     };
   }
 }

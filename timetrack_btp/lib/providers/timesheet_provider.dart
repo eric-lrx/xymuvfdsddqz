@@ -21,8 +21,131 @@ class TimesheetProvider with ChangeNotifier {
     return [..._reports];
   }
 
+  // Récupérer tous les chantiers
   List<Worksite> get worksites {
     return [..._worksites];
+  }
+  
+  // Récupérer uniquement les chantiers assignés à un employé spécifique
+  List<Worksite> getWorksitesForEmployee(String userId) {
+    // Pour un administrateur, montrer tous les chantiers
+    if (_isUserAdmin(userId)) {
+      return [..._worksites];
+    }
+    
+    // Pour les autres utilisateurs, ne montrer que les chantiers assignés
+    return _worksites.where((ws) => 
+      ws.assignedEmployees.contains(userId)
+    ).toList();
+  }
+  
+  // Vérifier si un utilisateur est administrateur
+  bool _isUserAdmin(String userId) {
+    // Pour le prototype, nous avons un ID fixe pour l'admin
+    return userId == 'admin123';
+  }
+  
+  // Ajouter un employé à un chantier
+  Future<bool> assignEmployeeToWorksite(String employeeId, String worksiteId) async {
+    try {
+      final worksiteIndex = _worksites.indexWhere((ws) => ws.id == worksiteId);
+      if (worksiteIndex == -1) {
+        return false;
+      }
+      
+      // Créer une nouvelle instance du chantier
+      final worksite = _worksites[worksiteIndex];
+      
+      // Vérifier si l'employé est déjà assigné
+      if (worksite.assignedEmployees.contains(employeeId)) {
+        return true; // Déjà assigné, considéré comme un succès
+      }
+      
+      // Créer une nouvelle liste d'assignations avec l'employé ajouté
+      final newAssignedEmployees = [...worksite.assignedEmployees, employeeId];
+      
+      // Créer un nouveau chantier avec la liste mise à jour
+      final updatedWorksite = Worksite(
+        id: worksite.id,
+        name: worksite.name,
+        address: worksite.address,
+        latitude: worksite.latitude,
+        longitude: worksite.longitude,
+        radius: worksite.radius,
+        startDate: worksite.startDate,
+        endDate: worksite.endDate,
+        clientName: worksite.clientName,
+        description: worksite.description,
+        assignedEmployees: newAssignedEmployees,
+      );
+      
+      // Mettre à jour la liste
+      _worksites[worksiteIndex] = updatedWorksite;
+      
+      // Sauvegarder localement
+      await _saveWorksitesLocally();
+      
+      notifyListeners();
+      return true;
+    } catch (error) {
+      print('Error assigning employee to worksite: $error');
+      return false;
+    }
+  }
+  
+  // Retirer un employé d'un chantier
+  Future<bool> unassignEmployeeFromWorksite(String employeeId, String worksiteId) async {
+    try {
+      final worksiteIndex = _worksites.indexWhere((ws) => ws.id == worksiteId);
+      if (worksiteIndex == -1) {
+        return false;
+      }
+      
+      final worksite = _worksites[worksiteIndex];
+      
+      // Vérifier si l'employé est assigné
+      if (!worksite.assignedEmployees.contains(employeeId)) {
+        return true; // Déjà non assigné, considéré comme un succès
+      }
+      
+      // Créer une nouvelle liste d'assignations sans l'employé
+      final newAssignedEmployees = worksite.assignedEmployees.where((id) => id != employeeId).toList();
+      
+      // Créer un nouveau chantier avec la liste mise à jour
+      final updatedWorksite = Worksite(
+        id: worksite.id,
+        name: worksite.name,
+        address: worksite.address,
+        latitude: worksite.latitude,
+        longitude: worksite.longitude,
+        radius: worksite.radius,
+        startDate: worksite.startDate,
+        endDate: worksite.endDate,
+        clientName: worksite.clientName,
+        description: worksite.description,
+        assignedEmployees: newAssignedEmployees,
+      );
+      
+      // Mettre à jour la liste
+      _worksites[worksiteIndex] = updatedWorksite;
+      
+      // Sauvegarder localement
+      await _saveWorksitesLocally();
+      
+      notifyListeners();
+      return true;
+    } catch (error) {
+      print('Error unassigning employee from worksite: $error');
+      return false;
+    }
+  }
+  
+  // Sauvegarder les chantiers localement
+  Future<void> _saveWorksitesLocally() async {
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString('worksites', json.encode(
+      _worksites.map((ws) => ws.toJson()).toList(),
+    ));
   }
 
   Timesheet? get activeTimesheet {
@@ -48,6 +171,7 @@ class TimesheetProvider with ChangeNotifier {
           endDate: DateTime.now().add(Duration(days: 60)),
           clientName: 'SCI Les Fleurs',
           description: 'Rénovation complète d\'un immeuble de 6 étages',
+          assignedEmployees: ['user123', 'user456'], // Assignation de deux employés de test
         ),
         Worksite(
           id: 'site2',
@@ -60,6 +184,7 @@ class TimesheetProvider with ChangeNotifier {
           endDate: DateTime.now().add(Duration(days: 120)),
           clientName: 'Métropole de Lyon',
           description: 'Réfection du tablier du pont',
+          assignedEmployees: ['user123'],  // Assignation d'un seul employé
         ),
       ];
       
@@ -145,6 +270,14 @@ class TimesheetProvider with ChangeNotifier {
   // Créer un nouveau pointage (check-in)
   Future<Timesheet?> checkIn(String userId, String worksiteId) async {
     try {
+      // Vérifier si l'utilisateur est assigné à ce chantier
+      final worksite = _worksites.firstWhere((ws) => ws.id == worksiteId);
+      
+      // Si l'utilisateur n'est pas un admin et n'est pas assigné à ce chantier
+      if (!_isUserAdmin(userId) && !worksite.assignedEmployees.contains(userId)) {
+        throw Exception('Vous n\'êtes pas autorisé à pointer sur ce chantier');
+      }
+      
       // Vérifier si l'utilisateur est dans la zone du chantier
       final isInWorksite = await isUserInWorksite(worksiteId);
       

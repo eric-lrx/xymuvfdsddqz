@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../providers/timesheet_provider.dart';
 import '../../models/worksite.dart';
 import 'admin_worksite_form_screen.dart';
+import 'admin_worksite_assign_screen.dart';
 
 class AdminWorksitesScreen extends StatefulWidget {
   static const routeName = '/admin-worksites';
@@ -206,6 +207,19 @@ class _AdminWorksitesScreenState extends State<AdminWorksitesScreen> {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
+                                    IconButton(
+                                      icon: Icon(Icons.people, color: Colors.purple),
+                                      tooltip: 'Gérer les assignations',
+                                      onPressed: () {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (ctx) => AdminWorksiteAssignScreen(
+                                              worksiteId: worksite.id,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                     IconButton(
                                       icon: Icon(Icons.map, color: Colors.blue),
                                       tooltip: 'Voir sur la carte',

@@ -18,11 +18,16 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = false;
   int _selectedIndex = 0;
+  bool _isInit = false;
 
   @override
-  void initState() {
-    super.initState();
-    _loadData();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Recharger les données à chaque fois que l'écran est affiché
+    if (!_isInit) {
+      _loadData();
+      _isInit = true;
+    }
   }
 
   Future<void> _loadData() async {
@@ -59,7 +64,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final timesheetProvider = Provider.of<TimesheetProvider>(context);
     final user = authProvider.user;
     final activeTimesheet = timesheetProvider.activeTimesheet;
-    final worksites = timesheetProvider.worksites;
+    
+    // Récupérer uniquement les chantiers assignés à l'utilisateur connecté
+    final worksites = user != null 
+        ? timesheetProvider.getWorksitesForEmployee(user.id)
+        : timesheetProvider.worksites;
 
     return RefreshIndicator(
       onRefresh: _loadData,
@@ -135,7 +144,23 @@ class _HomeScreenState extends State<HomeScreen> {
             SizedBox(height: 8),
             if (worksites.isEmpty)
               Center(
-                child: Text('Aucun chantier assigné'),
+                child: Column(
+                  children: [
+                    Icon(Icons.warning, size: 48, color: Colors.orange),
+                    SizedBox(height: 16),
+                    Text(
+                      'Vous n\'êtes assigné à aucun chantier',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Contactez votre administrateur pour être assigné à un chantier',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
               )
             else
               ListView.builder(
